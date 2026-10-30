@@ -47,7 +47,7 @@ This is an example on how to add a rectangle tool.
 
 ### 1. Add the tool to the `Tool` type and the `tools`
 
-A tool describes the settings for what it will create. Add a `RectTool` next to [`MarkerTool`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) and [`StickerTool`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) as well as the`Tool`:
+A tool describes the settings for what it will create. Add a `RectTool` next to [`MarkerTool`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) and [`StickerTool`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) as well as the `Tool`:
 
 ```ts
 interface RectTool {
@@ -137,7 +137,7 @@ case "rect":
   break;
 ```
 
-Nothing else requires changes. The other functions look at what kind of tool or command they are dealing with and therefore only use the `tools` list, `Tool` fields, or shared `draw(ctx)` method.
+Nothing else requires changes. The other functions do _not_ look at what type of tool or command they are dealing with and therefore only use the `tools` list, `Tool` fields, or shared `draw(ctx)` method.
 
 - [`undo`/`redo`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L252-L264): these move command objects between `doc.commands` and `redoStack`, and since a rectangle is one object like the other actions, it does not function any different.
 - [`exportPNG`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L376-L393): builds a second display on a 2x canvas and replays only `doc.commands` so they still show up in the PNG like how any other action would.
