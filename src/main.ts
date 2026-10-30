@@ -10,21 +10,71 @@ interface StrokeStyle {
 }
 
 interface Stroke {
+  type: "stroke";
   id: number;
   points: Point[];
   style: StrokeStyle;
 }
 
+interface Sticker {
+  type: "sticker";
+  id: number;
+  position: Point;
+  content: string;
+  size: number;
+}
+
+type DrawCommand = Stroke | Sticker;
+
 interface PaintDocument {
   width: number;
   height: number;
-  strokes: Stroke[];
+  commands: DrawCommand[];
 }
 
 interface Display {
   clear(): void;
-  render(strokes: readonly Stroke[], doc: PaintDocument): void;
+  render(commands: readonly DrawCommand[], doc: PaintDocument): void;
 }
+
+interface MarkerTool {
+  type: "marker";
+  label: string;
+  style: StrokeStyle;
+}
+
+interface StickerTool {
+  type: "sticker";
+  label: string;
+  content: string;
+  size: number;
+}
+
+type Tool = MarkerTool | StickerTool;
+
+const tools: Tool[] = [
+  {
+    type: "marker",
+    label: "Thin Marker",
+    style: { color: "#000000", width: 2, cap: "round" },
+  },
+  {
+    type: "marker",
+    label: "Thick Marker",
+    style: { color: "#000000", width: 8, cap: "round" },
+  },
+  { type: "sticker", label: "★", content: "★", size: 32 },
+  { type: "sticker", label: "❤", content: "❤", size: 32 },
+  { type: "sticker", label: "♫", content: "♫", size: 32 },
+];
+
+let selectedTool: Tool = tools[0];
+let currentCommand: DrawCommand | null = null;
+let nextId = 1;
+let display: Display;
+const redoStack: DrawCommand[] = [];
+const doc: PaintDocument = { width: 300, height: 300, commands: [] };
+const canvas = document.querySelector<HTMLCanvasElement>("#paint-canvas")!;
 
 function createCanvasDisplay(canvas: HTMLCanvasElement): Display {
   const ctx = canvas.getContext("2d")!;
@@ -49,6 +99,26 @@ function createCanvasDisplay(canvas: HTMLCanvasElement): Display {
     }
     ctx.stroke();
   }
+
+  function drawSticker(sticker: Sticker) {
+    ctx.font = `${sticker.size}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#000000";
+    ctx.fillText(sticker.content, sticker.position.x, sticker.position.y);
+  }
+
+  function drawCommand(cmd: DrawCommand) {
+    switch (cmd.type) {
+      case "stroke":
+        drawStroke(cmd);
+        break;
+      case "sticker":
+        drawSticker(cmd);
+        break;
+    }
+  }
+
   function clear() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -56,7 +126,7 @@ function createCanvasDisplay(canvas: HTMLCanvasElement): Display {
 
   return {
     clear,
-    render(strokes, doc) {
+    render(commands, doc) {
       clear();
       ctx.setTransform(
         canvas.width / doc.width,
@@ -66,24 +136,15 @@ function createCanvasDisplay(canvas: HTMLCanvasElement): Display {
         0,
         0,
       );
-      for (const stroke of strokes) drawStroke(stroke);
+      for (const cmd of commands) drawCommand(cmd);
     },
   };
 }
 
-const doc: PaintDocument = { width: 300, height: 300, strokes: [] };
-let currentStroke: Stroke | null = null;
-let nextId = 1;
-const currentStyle: StrokeStyle = { color: "#000", width: 3, cap: "round" };
-
-const canvas = document.querySelector<HTMLCanvasElement>("#paint-canvas")!;
-
-let display: Display;
-
-const redoStack: Stroke[] = [];
-
 function render() {
-  const ordered = currentStroke ? [...doc.strokes, currentStroke] : doc.strokes;
+  const ordered = currentCommand
+    ? [...doc.commands, currentCommand]
+    : doc.commands;
   display.render(ordered, doc);
   updateHistoryControls();
 }
@@ -104,44 +165,71 @@ function setDisplay(next: Display) {
   requestRender();
 }
 
+function createCommand(tool: Tool, point: Point): DrawCommand {
+  switch (tool.type) {
+    case "marker":
+      return {
+        type: "stroke",
+        id: nextId++,
+        points: [point],
+        style: { ...tool.style },
+      };
+    case "sticker":
+      return {
+        type: "sticker",
+        id: nextId++,
+        position: point,
+        content: tool.content,
+        size: tool.size,
+      };
+  }
+}
+
 function beginStroke(p: Point) {
-  currentStroke = { id: nextId++, points: [p], style: { ...currentStyle } };
+  currentCommand = createCommand(selectedTool, p);
   requestRender();
 }
 
 function extendStroke(p: Point) {
-  if (!currentStroke) return;
-  currentStroke.points.push(p);
+  if (!currentCommand) return;
+  switch (currentCommand.type) {
+    case "stroke":
+      currentCommand.points.push(p);
+      break;
+    case "sticker":
+      currentCommand.position = p;
+      break;
+  }
   requestRender();
 }
 
 function commitStroke() {
-  if (!currentStroke) return;
-  doc.strokes.push(currentStroke);
-  currentStroke = null;
+  if (!currentCommand) return;
+  doc.commands.push(currentCommand);
+  currentCommand = null;
   redoStack.length = 0;
   requestRender();
 }
 
 function cancelStroke() {
-  if (!currentStroke) return;
-  currentStroke = null;
+  if (!currentCommand) return;
+  currentCommand = null;
   requestRender();
 }
 
 function undo() {
-  if (currentStroke) return;
-  const stroke = doc.strokes.pop();
-  if (!stroke) return;
-  redoStack.push(stroke);
+  if (currentCommand) return;
+  const cmd = doc.commands.pop();
+  if (!cmd) return;
+  redoStack.push(cmd);
   requestRender();
 }
 
 function redo() {
-  if (currentStroke) return;
+  if (currentCommand) return;
   const stroke = redoStack.pop();
   if (!stroke) return;
-  doc.strokes.push(stroke);
+  doc.commands.push(stroke);
   requestRender();
 }
 
@@ -175,19 +263,42 @@ const redoButton = document.createElement("button");
 redoButton.addEventListener("click", redo);
 
 function updateHistoryControls() {
-  const canUndo = doc.strokes.length > 0 && !currentStroke;
-  const canRedo = redoStack.length > 0 && !currentStroke;
+  const canUndo = doc.commands.length > 0 && !currentCommand;
+  const canRedo = redoStack.length > 0 && !currentCommand;
 
   undoButton.disabled = !canUndo;
-  undoButton.textContent = `Undo (${doc.strokes.length})`;
-  undoButton.title = canUndo ? "Undo the last stroke" : "Nothing to undo";
+  undoButton.textContent = `Undo (${doc.commands.length})`;
+  undoButton.title = canUndo ? "Undo the last action" : "Nothing to undo";
 
   redoButton.disabled = !canRedo;
   redoButton.textContent = `Redo (${redoStack.length})`;
   redoButton.title = canRedo
-    ? "Restore the last undone stroke"
+    ? "Restore the last undone action"
     : "Nothing to redo";
 }
+
+const palette = document.createElement("div");
+const toolButtons = new Map<Tool, HTMLButtonElement>();
+
+function updateToolButtons() {
+  for (const [tool, button] of toolButtons) {
+    const selected = tool === selectedTool;
+    button.setAttribute("aria-pressed", String(selected));
+    button.style.outline = selected ? "2px solid #000000" : "";
+  }
+}
+
+for (const tool of tools) {
+  const button = document.createElement("button");
+  button.textContent = tool.label;
+  button.addEventListener("click", () => {
+    selectedTool = tool;
+    updateToolButtons();
+  });
+  toolButtons.set(tool, button);
+  palette.append(button);
+}
+updateToolButtons();
 
 const app = document.querySelector<HTMLElement>("#app")!;
 const heading = document.createElement("h1");
@@ -195,6 +306,7 @@ heading.textContent = "D2 project";
 const message = document.createElement("p");
 message.textContent = "Your project starts here.";
 app.append(heading, message);
+app.append(palette);
 app.append(undoButton, redoButton, redrawButton);
 
 setDisplay(createCanvasDisplay(canvas));
