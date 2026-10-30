@@ -288,17 +288,47 @@ function updateToolButtons() {
   }
 }
 
-for (const tool of tools) {
+function selectTool(tool: Tool) {
+  selectedTool = tool;
+  updateToolButtons();
+}
+
+function addToolButton(tool: Tool) {
   const button = document.createElement("button");
   button.textContent = tool.label;
-  button.addEventListener("click", () => {
-    selectedTool = tool;
-    updateToolButtons();
-  });
+  button.addEventListener("click", () => selectTool(tool));
   toolButtons.set(tool, button);
   palette.append(button);
 }
+
+function addTool(tool: Tool) {
+  tools.push(tool);
+  addToolButton(tool);
+}
+
+for (const tool of tools) addToolButton(tool);
 updateToolButtons();
+
+const CUSTOM_STICKER_SIZE = 32;
+const newStickerButton = document.createElement("button");
+newStickerButton.textContent = "+ New sticker";
+newStickerButton.title = "Create a sticker from an emoji or short text";
+newStickerButton.addEventListener("click", () => {
+  const content = prompt("Sticker content:")?.trim();
+  if (!content) return;
+
+  const name = prompt("Name for this sticker:", content)?.trim();
+  if (name === undefined) return;
+
+  const tool: StickerTool = {
+    type: "sticker",
+    label: name || content,
+    content,
+    size: CUSTOM_STICKER_SIZE,
+  };
+  addTool(tool);
+  selectTool(tool);
+});
 
 const app = document.querySelector<HTMLElement>("#app")!;
 const heading = document.createElement("h1");
@@ -307,6 +337,7 @@ const message = document.createElement("p");
 message.textContent = "Your project starts here.";
 app.append(heading, message);
 app.append(palette);
+app.append(newStickerButton);
 app.append(undoButton, redoButton, redrawButton);
 
 setDisplay(createCanvasDisplay(canvas));
