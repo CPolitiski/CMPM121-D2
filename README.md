@@ -47,7 +47,7 @@ This is an example on how to add a rectangle tool.
 
 ### 1. Add the tool to the `Tool` type and the `tools`
 
-A tool describes the settings for what it will create. Add a `RectTool` next to [`MarkerTool`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) and ['StickerTool`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) as well as the`Tool`:
+A tool describes the settings for what it will create. Add a `RectTool` next to [`MarkerTool`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) and [`StickerTool`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) as well as the`Tool`:
 
 ```ts
 interface RectTool {
@@ -79,7 +79,7 @@ interface Rect extends Drawable {
 }
 ```
 
-Write `drawRect` to match `drawStroke`/`drawSticker`:
+Write `drawRect` to match [`drawStroke`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L119-L150) and [`drawSticker`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L119-L150):
 
 ```ts
 function drawRect(ctx: CanvasRenderingContext2D, rect: Rect) {
@@ -96,7 +96,7 @@ function drawRect(ctx: CanvasRenderingContext2D, rect: Rect) {
 }
 ```
 
-Write `makeRect` to match `makeStroke`/`makeSticker`:
+Write `makeRect` to match [`makeStroke`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L152-L178) and [`makeSticker`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L152-L178):
 
 ```ts
 function makeRect(id: number, start: Point, style: StrokeStyle): Rect {
@@ -112,13 +112,13 @@ function makeRect(id: number, start: Point, style: StrokeStyle): Rect {
 }
 ```
 
-### 3. Add `Rect` to the `DrawCommand` union
+### 3. Add `Rect` to the [`DrawCommand`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L31) union
 
 ```ts
 type DrawCommand = Stroke | Sticker | Rect;
 ```
 
-### 4. Handle case `"rect"` in `createCommand`
+### 4. Handle case `"rect"` in [`createCommand`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L210-L217)
 
 Add a case for `"rect"` to turn the tool into a new command when the user clicks:
 
@@ -127,9 +127,9 @@ case "rect":
   return makeRect(nextId++, point, { ...tool.style });
 ```
 
-### 5. Handle `"rect"` in `moveAction`
+### 5. Handle `"rect"` in [`moveAction`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L224-L235)
 
-`moveAction` updates the action while the user drags the cursor. In this case, the rectangle moves its far corner:
+[`moveAction`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L224-L235) updates the action while the user drags the cursor. In this case, the rectangle moves its far corner:
 
 ```ts
 case "rect":
@@ -137,7 +137,10 @@ case "rect":
   break;
 ```
 
-Nothing else requires changes.
+Nothing else requires changes. The other functions look at what kind of tool or command they are dealing with and therefore only use the `tools` list, `Tool` fields, or shared `draw(ctx)` method.
+
+- [`undo`/`redo`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L252-L264): these move command objects between `doc.commands` and `redoStack`, and since a rectangle is one object like the other actions, it does not function any different.
+- [`exportPNG`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L376-L393): builds a second display on a 2x canvas and replays only `doc.commands` so they still show up in the PNG like how any other action would.
 
 ## Playable Link
 
