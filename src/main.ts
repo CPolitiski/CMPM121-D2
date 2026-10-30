@@ -9,14 +9,18 @@ interface StrokeStyle {
   cap: CanvasLineCap;
 }
 
-interface Stroke {
+interface Drawable {
+  draw(ctx: CanvasRenderingContext2D): void;
+}
+
+interface Stroke extends Drawable {
   type: "stroke";
   id: number;
   points: Point[];
   style: StrokeStyle;
 }
 
-interface Sticker {
+interface Sticker extends Drawable {
   type: "sticker";
   id: number;
   position: Point;
@@ -70,6 +74,7 @@ const tools: Tool[] = [
 
 let selectedTool: Tool = tools[0];
 let currentCommand: DrawCommand | null = null;
+let activePointerId: number | null = null;
 let nextId = 1;
 let display: Display;
 const redoStack: DrawCommand[] = [];
@@ -78,46 +83,6 @@ const canvas = document.querySelector<HTMLCanvasElement>("#paint-canvas")!;
 
 function createCanvasDisplay(canvas: HTMLCanvasElement): Display {
   const ctx = canvas.getContext("2d")!;
-
-  function drawStroke(stroke: Stroke) {
-    const { points, style } = stroke;
-    if (points.length === 0) return;
-
-    ctx.strokeStyle = style.color;
-    ctx.lineWidth = style.width;
-    ctx.lineCap = style.cap;
-    ctx.lineJoin = "round";
-
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    if (points.length === 1) {
-      ctx.lineTo(points[0].x, points[0].y);
-    } else {
-      for (let i = 1; i < points.length; i++) {
-        ctx.lineTo(points[i].x, points[i].y);
-      }
-    }
-    ctx.stroke();
-  }
-
-  function drawSticker(sticker: Sticker) {
-    ctx.font = `${sticker.size}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#000000";
-    ctx.fillText(sticker.content, sticker.position.x, sticker.position.y);
-  }
-
-  function drawCommand(cmd: DrawCommand) {
-    switch (cmd.type) {
-      case "stroke":
-        drawStroke(cmd);
-        break;
-      case "sticker":
-        drawSticker(cmd);
-        break;
-    }
-  }
 
   function clear() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -136,9 +101,70 @@ function createCanvasDisplay(canvas: HTMLCanvasElement): Display {
         0,
         0,
       );
-      for (const cmd of commands) drawCommand(cmd);
+      for (const cmd of commands) cmd.draw(ctx);
     },
   };
+}
+
+function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
+  const { points, style } = stroke;
+  if (points.length === 0) return;
+
+  ctx.save();
+  ctx.strokeStyle = style.color;
+  ctx.lineWidth = style.width;
+  ctx.lineCap = style.cap;
+  ctx.lineJoin = "round";
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  if (points.length === 1) {
+    ctx.lineTo(points[0].x, points[0].y);
+  } else {
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSticker(ctx: CanvasRenderingContext2D, sticker: Sticker) {
+  ctx.save();
+  ctx.font = `${sticker.size}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#000000";
+  ctx.fillText(sticker.content, sticker.position.x, sticker.position.y);
+  ctx.restore();
+}
+
+function makeStroke(id: number, start: Point, style: StrokeStyle): Stroke {
+  const stroke: Stroke = {
+    type: "stroke",
+    id,
+    points: [start],
+    style,
+    draw: (ctx) => drawStroke(ctx, stroke),
+  };
+  return stroke;
+}
+
+function makeSticker(
+  id: number,
+  position: Point,
+  content: string,
+  size: number,
+): Sticker {
+  const sticker: Sticker = {
+    type: "sticker",
+    id,
+    position,
+    content,
+    size,
+    draw: (ctx) => drawSticker(ctx, sticker),
+  };
+  return sticker;
 }
 
 function render() {
@@ -165,32 +191,27 @@ function setDisplay(next: Display) {
   requestRender();
 }
 
+function commitCommand(cmd: DrawCommand) {
+  doc.commands.push(cmd);
+  redoStack.length = 0;
+  requestRender();
+}
+
 function createCommand(tool: Tool, point: Point): DrawCommand {
   switch (tool.type) {
     case "marker":
-      return {
-        type: "stroke",
-        id: nextId++,
-        points: [point],
-        style: { ...tool.style },
-      };
+      return makeStroke(nextId++, point, { ...tool.style });
     case "sticker":
-      return {
-        type: "sticker",
-        id: nextId++,
-        position: point,
-        content: tool.content,
-        size: tool.size,
-      };
+      return makeSticker(nextId++, point, tool.content, tool.size);
   }
 }
 
-function beginStroke(p: Point) {
+function beginAction(p: Point) {
   currentCommand = createCommand(selectedTool, p);
   requestRender();
 }
 
-function extendStroke(p: Point) {
+function moveAction(p: Point) {
   if (!currentCommand) return;
   switch (currentCommand.type) {
     case "stroke":
@@ -203,22 +224,22 @@ function extendStroke(p: Point) {
   requestRender();
 }
 
-function commitStroke() {
+function endAction() {
   if (!currentCommand) return;
-  doc.commands.push(currentCommand);
+  const finished = currentCommand;
   currentCommand = null;
-  redoStack.length = 0;
-  requestRender();
+  activePointerId = null;
+  commitCommand(finished);
 }
 
-function cancelStroke() {
+function cancelAction() {
   if (!currentCommand) return;
   currentCommand = null;
+  activePointerId = null;
   requestRender();
 }
 
 function undo() {
-  if (currentCommand) return;
   const cmd = doc.commands.pop();
   if (!cmd) return;
   redoStack.push(cmd);
@@ -226,10 +247,9 @@ function undo() {
 }
 
 function redo() {
-  if (currentCommand) return;
-  const stroke = redoStack.pop();
-  if (!stroke) return;
-  doc.commands.push(stroke);
+  const cmd = redoStack.pop();
+  if (!cmd) return;
+  doc.commands.push(cmd);
   requestRender();
 }
 
@@ -242,12 +262,23 @@ function toDocPoint(e: PointerEvent): Point {
 }
 
 canvas.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0 || currentCommand) return;
+  activePointerId = e.pointerId;
   canvas.setPointerCapture(e.pointerId);
-  beginStroke(toDocPoint(e));
+  beginAction(toDocPoint(e));
 });
-canvas.addEventListener("pointermove", (e) => extendStroke(toDocPoint(e)));
-canvas.addEventListener("pointerup", commitStroke);
-canvas.addEventListener("pointercancel", cancelStroke);
+canvas.addEventListener("pointermove", (e) => {
+  if (e.pointerId !== activePointerId) return;
+  moveAction(toDocPoint(e));
+});
+canvas.addEventListener("pointerup", (e) => {
+  if (e.pointerId !== activePointerId) return;
+  endAction();
+});
+canvas.addEventListener("pointercancel", (e) => {
+  if (e.pointerId !== activePointerId) return;
+  cancelAction();
+});
 
 const redrawButton = document.createElement("button");
 redrawButton.textContent = "Redraw";
