@@ -33,6 +33,7 @@ type DrawCommand = Stroke | Sticker;
 interface PaintDocument {
   width: number;
   height: number;
+  background: string;
   commands: DrawCommand[];
 }
 
@@ -78,7 +79,12 @@ let activePointerId: number | null = null;
 let nextId = 1;
 let display: Display;
 const redoStack: DrawCommand[] = [];
-const doc: PaintDocument = { width: 300, height: 300, commands: [] };
+const doc: PaintDocument = {
+  width: 300,
+  height: 300,
+  background: "#ffffff",
+  commands: [],
+};
 const canvas = document.querySelector<HTMLCanvasElement>("#paint-canvas")!;
 
 function createCanvasDisplay(canvas: HTMLCanvasElement): Display {
@@ -101,6 +107,10 @@ function createCanvasDisplay(canvas: HTMLCanvasElement): Display {
         0,
         0,
       );
+      ctx.save();
+      ctx.fillStyle = doc.background;
+      ctx.fillRect(0, 0, doc.width, doc.height);
+      ctx.restore();
       for (const cmd of commands) cmd.draw(ctx);
     },
   };
@@ -361,6 +371,32 @@ newStickerButton.addEventListener("click", () => {
   selectTool(tool);
 });
 
+const EXPORT_SCALE = 2;
+
+function exportPNG() {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = canvas.width * EXPORT_SCALE;
+  exportCanvas.height = canvas.height * EXPORT_SCALE;
+
+  const exportDisplay = createCanvasDisplay(exportCanvas);
+  exportDisplay.render(doc.commands, doc);
+
+  exportCanvas.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "drawing.png";
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, "image/png");
+}
+
+const exportButton = document.createElement("button");
+exportButton.textContent = "Export PNG";
+exportButton.title = "Download as PNG";
+exportButton.addEventListener("click", exportPNG);
+
 const app = document.querySelector<HTMLElement>("#app")!;
 const heading = document.createElement("h1");
 heading.textContent = "D2 project";
@@ -370,5 +406,6 @@ app.append(heading, message);
 app.append(palette);
 app.append(newStickerButton);
 app.append(undoButton, redoButton, redrawButton);
+app.append(exportButton);
 
 setDisplay(createCanvasDisplay(canvas));
