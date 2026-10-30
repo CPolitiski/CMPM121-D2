@@ -35,7 +35,7 @@ Commit 7: Separated document and interaction states for tools. Input,document ch
 
 Commit 8: Added a button to export the current drawing as a png with a white background to the user's computer files. Exporting does not impact the functionality of other buttons.
 
-Revision: Within commit 7 we fixed a long function code smell. Our old drawstroke function was a very long function that had many smaller functions inside of it. We divided everything up and separated the functions into their own individual smaller functions.
+Revision: Within commit 7 we fixed a long function code smell. Our old drawstroke function was a very long function that had many smaller functions inside of it. We divided everything up and separated the functions into their own individual smaller functions. This was also needed to separate drawing from the on-screen canvas.
 
 Playtest: We had a friend test out the program and they were able to easily figure out and use each of the tools and functionality of the program without intervention.
 
@@ -47,7 +47,7 @@ This is an example on how to add a rectangle tool.
 
 ### 1. Add the tool to the `Tool` type and the `tools`
 
-A tool describes the settings for what it will create.
+A tool describes the settings for what it will create. Add a `RectTool` next to `MarkerTool` [main.ts](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) and `StickerTool` as well as the `Tool`:
 
 ```ts
 interface RectTool {
@@ -65,6 +65,80 @@ Next, add a preset entry to the `tools` list:
 { type: "rect", label: "Rectangle", style: { color: "#000000", width: 3, cap: "butt" } },
 ```
 
+### 2. Add `Rect` drawing command with `makeRect` and `drawRect`
+
+Each saved object is a command that can draw itself onto any canvas. Add a `Rect` alongside `Stroke` and `Sticker`:
+
+```ts
+interface Rect extends Drawable {
+  type: "rect";
+  id: number;
+  start: Point; // the corner where the initial click happened
+  end: Point; // the corner that follows the pointer
+  style: StrokeStyle;
+}
+```
+
+Write `drawRect` to match `drawStroke`/`drawSticker`:
+
+```ts
+function drawRect(ctx: CanvasRenderingContext2D, rect: Rect) {
+  const x = Math.min(rect.start.x, rect.end.x);
+  const y = Math.min(rect.start.y, rect.end.y);
+  const w = Math.abs(rect.end.x - rect.start.x);
+  const h = Math.abs(rect.end.y - rect.start.y);
+
+  ctx.save();
+  ctx.strokeStyle = rect.style.color;
+  ctx.lineWidth = rect.style.width;
+  ctx.strokeRect(x, y, w, h);
+  ctx.restore();
+}
+```
+
+Write `makeRect` to match `makeStroke`/`makeSticker`:
+
+```ts
+function makeRect(id: number, start: Point, style: StrokeStyle): Rect {
+  const rect: Rect = {
+    type: "rect",
+    id,
+    start,
+    end: { ...start },
+    style,
+    draw: (ctx) => drawRect(ctx, rect),
+  };
+  return rect;
+}
+```
+
+### 3. Add `Rect` to the `DrawCommand` union
+
+```ts
+type DrawCommand = Stroke | Sticker | Rect;
+```
+
+### 4. Handle case `"rect"` in `createCommand`
+
+Add a case for `"rect"` to turn the tool into a new command when the user clicks:
+
+```ts
+case "rect":
+  return makeRect(nextId++, point, { ...tool.style });
+```
+
+### 5. Handle `"rect"` in `moveAction`
+
+`moveAction` updates the action while the user drags the cursor. In this case, the rectangle moves its far corner:
+
+```ts
+case "rect":
+  currentCommand.end = p;
+  break;
+```
+
+Nothing else requires changes.
+
 ## Playable Link
 
 https://cpolitiski.github.io/CMPM121-D2/
@@ -80,6 +154,3 @@ A minimal TypeScript/Vite browser project with Deno checks and GitHub Pages depl
 ## Credits
 
 Tooling adapted from the [CMPM 121 Fall 2026 D1 starter](https://github.com/ucsc-cmpm-121-f26/d1-starter/tree/d949e744b0f9fb7c133a5316f86f2b7fe54529ad), derived from the [S01 starter](https://github.com/ucsc-cmpm-121-f26/s01-starter/tree/8974888efb6537be82e8eb069db139ea885039da). Those repositories have no explicit repository license; no new license is assigned to that material. The D2 scaffold was authored with OpenCode/OpenAI GPT-6.1 Sol assistance. Dependencies retain their respective licenses.
-
-```
-```
