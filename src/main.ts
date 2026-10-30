@@ -80,9 +80,12 @@ const canvas = document.querySelector<HTMLCanvasElement>("#paint-canvas")!;
 
 let display: Display;
 
+const redoStack: Stroke[] = [];
+
 function render() {
   const ordered = currentStroke ? [...doc.strokes, currentStroke] : doc.strokes;
   display.render(ordered, doc);
+  updateHistoryControls();
 }
 
 let renderQueued = false;
@@ -116,6 +119,29 @@ function commitStroke() {
   if (!currentStroke) return;
   doc.strokes.push(currentStroke);
   currentStroke = null;
+  redoStack.length = 0;
+  requestRender();
+}
+
+function cancelStroke() {
+  if (!currentStroke) return;
+  currentStroke = null;
+  requestRender();
+}
+
+function undo() {
+  if (currentStroke) return;
+  const stroke = doc.strokes.pop();
+  if (!stroke) return;
+  redoStack.push(stroke);
+  requestRender();
+}
+
+function redo() {
+  if (currentStroke) return;
+  const stroke = redoStack.pop();
+  if (!stroke) return;
+  doc.strokes.push(stroke);
   requestRender();
 }
 
@@ -133,7 +159,7 @@ canvas.addEventListener("pointerdown", (e) => {
 });
 canvas.addEventListener("pointermove", (e) => extendStroke(toDocPoint(e)));
 canvas.addEventListener("pointerup", commitStroke);
-canvas.addEventListener("pointercancel", commitStroke);
+canvas.addEventListener("pointercancel", cancelStroke);
 
 const redrawButton = document.createElement("button");
 redrawButton.textContent = "Redraw";
@@ -142,12 +168,33 @@ redrawButton.addEventListener("click", () => {
   setTimeout(requestRender, 500);
 });
 
+const undoButton = document.createElement("button");
+undoButton.addEventListener("click", undo);
+
+const redoButton = document.createElement("button");
+redoButton.addEventListener("click", redo);
+
+function updateHistoryControls() {
+  const canUndo = doc.strokes.length > 0 && !currentStroke;
+  const canRedo = redoStack.length > 0 && !currentStroke;
+
+  undoButton.disabled = !canUndo;
+  undoButton.textContent = `Undo (${doc.strokes.length})`;
+  undoButton.title = canUndo ? "Undo the last stroke" : "Nothing to undo";
+
+  redoButton.disabled = !canRedo;
+  redoButton.textContent = `Redo (${redoStack.length})`;
+  redoButton.title = canRedo
+    ? "Restore the last undone stroke"
+    : "Nothing to redo";
+}
+
 const app = document.querySelector<HTMLElement>("#app")!;
 const heading = document.createElement("h1");
 heading.textContent = "D2 project";
 const message = document.createElement("p");
 message.textContent = "Your project starts here.";
 app.append(heading, message);
-app.append(redrawButton);
+app.append(undoButton, redoButton, redrawButton);
 
 setDisplay(createCanvasDisplay(canvas));
