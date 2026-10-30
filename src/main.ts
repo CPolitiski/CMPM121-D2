@@ -68,8 +68,8 @@ const tools: Tool[] = [
     label: "Thick Marker",
     style: { color: "#000000", width: 8, cap: "round" },
   },
-  { type: "sticker", label: "★", content: "★", size: 32 },
-  { type: "sticker", label: "❤", content: "❤", size: 32 },
+  { type: "sticker", label: "♬", content: "♬", size: 32 },
+  { type: "sticker", label: "♪", content: "♪", size: 32 },
   { type: "sticker", label: "♫", content: "♫", size: 32 },
 ];
 
@@ -399,9 +399,9 @@ exportButton.addEventListener("click", exportPNG);
 
 const app = document.querySelector<HTMLElement>("#app")!;
 const heading = document.createElement("h1");
-heading.textContent = "D2 project";
+heading.textContent = "Music Paint";
 const message = document.createElement("p");
-message.textContent = "Your project starts here.";
+message.textContent = "Draw your musical dream";
 app.append(heading, message);
 app.append(palette);
 app.append(newStickerButton);
