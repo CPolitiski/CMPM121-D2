@@ -47,7 +47,7 @@ This is an example on how to add a rectangle tool.
 
 ### 1. Add the tool to the `Tool` type and the `tools`
 
-A tool describes the settings for what it will create. Add a `RectTool` next to `MarkerTool` [main.ts](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) and `StickerTool` as well as the `Tool`:
+A tool describes the settings for what it will create. Add a `RectTool` next to [`MarkerTool` and `StickerTool`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) as well as the `Tool`:
 
 ```ts
 interface RectTool {
