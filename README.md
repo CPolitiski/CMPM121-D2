@@ -47,7 +47,7 @@ This is an example on how to add a rectangle tool.
 
 ### 1. Add the tool to the `Tool` type and the `tools`
 
-A tool describes the settings for what it will create. Add a `RectTool` next to [`MarkerTool` and `StickerTool`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) as well as the `Tool`:
+A tool describes the settings for what it will create. Add a `RectTool` next to [`MarkerTool`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) and ['StickerTool`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L45-L58) as well as the`Tool`:
 
 ```ts
 interface RectTool {
@@ -59,7 +59,7 @@ interface RectTool {
 type Tool = MarkerTool | StickerTool | RectTool;
 ```
 
-Next, add a preset entry to the `tools` list:
+Next, add a preset entry to the [`tools`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L60-L74) list:
 
 ```ts
 { type: "rect", label: "Rectangle", style: { color: "#000000", width: 3, cap: "butt" } },
@@ -67,7 +67,7 @@ Next, add a preset entry to the `tools` list:
 
 ### 2. Add `Rect` drawing command with `makeRect` and `drawRect`
 
-Each saved object is a command that can draw itself onto any canvas. Add a `Rect` alongside `Stroke` and `Sticker`:
+Each saved object is a command that can draw itself onto any canvas. Add a `Rect` alongside [`Stroke`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L16-L29) and[`Sticker`](https://github.com/CPolitiski/CMPM121-D2/blob/3b87be8505973f3eead2d87122962365dfae840b/src/main.ts#L16-L29):
 
 ```ts
 interface Rect extends Drawable {
